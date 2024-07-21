@@ -137,7 +137,7 @@ data_path = "C:/Users/henry/OneDrive/Documents/GitHub/NeuralNetworks/PerceptronT
 
 GRID_SIZE = 20
 
-perceptron = NeuralNetwork(GRID_SIZE*GRID_SIZE, 10, 10)
+perceptron = NeuralNetwork(GRID_SIZE*GRID_SIZE, 10, 5)
 perceptron.load(txt_path)
 
 training_data = []
@@ -173,13 +173,9 @@ def load_training_data():
     return data
 
 training_data = load_training_data()
-
 #print(training_data)
+mu = 0.3
 
-mu = 0.01
-
-#XOR_model2 = NeuralNetwork(2,2)
-#XOR_model3 = NeuralNetwork(2,2)
 
 def output_all_case(model, data):
     print("Results-------")

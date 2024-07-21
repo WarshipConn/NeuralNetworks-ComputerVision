@@ -122,7 +122,7 @@ class Bar:
         self.gui = canvas.create_rectangle(0,0,0,0, fill="black")
     
     def update(self, size, max_size):
-        self.canvas.coords(self.gui, 0, BAR_MAX_Y*self.index + BAR_MARGIN*self.index, BAR_MAX_X * size / max_size, BAR_MAX_Y*(self.index + 1) + BAR_MARGIN*self.index)
+        self.canvas.coords(self.gui, 0, BAR_MAX_Y*self.index + BAR_MARGIN*self.index, 10 + BAR_MAX_X * size / max_size, BAR_MAX_Y*(self.index + 1) + BAR_MARGIN*self.index)
 
         if size == max_size:
             self.canvas.itemconfig(self.gui, fill="red")
@@ -137,7 +137,7 @@ class App:
 
         canvas = Canvas(frame, width=CANVAS_SIZE, height=CANVAS_SIZE)
         self.canvas = canvas
-        canvas.grid(row=0, column=0, sticky=W+E+N+S)
+        canvas.place(x=0,y=0)
 
         self.squares = []
         self.drawing = False
@@ -145,23 +145,30 @@ class App:
         canvas.bind("<B1-Motion>", self.mouse_move)
         canvas.bind("<ButtonRelease-1>", self.mouse_up)
 
-        menu = Frame(frame, bg="lightgreen")
-        menu.grid(row=0, column=1, sticky=W+E+N+S)
+        menu = Frame(frame, width=450, height=500, bg="lightgreen")
+        menu.place(x=CANVAS_SIZE,y=0)
 
         rerun_button = Button(menu, text="Rerun", command=self.rerun)
-        rerun_button.grid(row=0, column=0)
+        rerun_button.place(x=20, y=100)
+        #rerun_button.grid(row=0, column=0)
 
         clear_button = Button(menu, text="Clear", command=self.clear)
-        clear_button.grid(row=1, column=0)
+        clear_button.place(x=20, y=200)
+        #clear_button.grid(row=1, column=0)
 
         self.result = StringVar()
-        status = Label(menu, textvariable=self.result)
-        status.grid(row=1, column=1)
-
+        status = Label(menu, textvariable=self.result, wraplength=200)
+        status.place(x=150, y=350)
+        #status.grid(row=1, column=1)
 
         result_canvas = Canvas(menu, width=300, height=300)
         self.result_canvas = result_canvas
-        result_canvas.grid(row=0, column=1)
+        result_canvas.place(x=150, y=20)
+        #result_canvas.grid(row=0, column=1)
+
+        for i in range(10):
+            label = Label(menu, text=str(i))
+            label.place(x=125, y=20+i*30)
 
         self.bars = []
         for i in range(10):
@@ -222,7 +229,7 @@ class App:
 
 
 root = Tk()
-root.minsize(CANVAS_SIZE+300, CANVAS_SIZE)
+root.minsize(CANVAS_SIZE+450, CANVAS_SIZE)
 root.resizable(False, False)
 root.wm_title("Perceptron Reader")
 
