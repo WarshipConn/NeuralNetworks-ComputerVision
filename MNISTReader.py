@@ -8,8 +8,8 @@ from tkinter import *
 GRID_SIZE = 28
 CANVAS_SIZE = 500
 
-txt_path = "C:/Users/henry/OneDrive/Documents/GitHub/NeuralNetworks/CurrentWeights.txt"
-model_path = "C:/Users/henry/OneDrive/Documents/GitHub/NeuralNetworks/mnist_cnn.pt"
+#txt_path = "C:/Users/henry/OneDrive/Documents/GitHub/NeuralNetworks/CurrentWeights.txt"
+model_path = "./mnist_cnn.pt"
 
 grid = np.array([[0]*GRID_SIZE]*GRID_SIZE)
 
