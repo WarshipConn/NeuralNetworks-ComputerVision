@@ -172,7 +172,7 @@ class App:
         pass
 
     def rerun(self):
-        result = perceptron.output(torch.tensor([grid], dtype=torch.float))
+        result = perceptron.output(torch.tensor(np.array([grid]), dtype=torch.float))
         np_result = result.data.numpy()
 
         result_max = np.max(np_result)
