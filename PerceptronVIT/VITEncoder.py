@@ -1,222 +1,145 @@
-import numpy as np
+import argparse
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.optim as optim
 import torchvision
 from torchvision import datasets, transforms
-from tkinter import *
+from torch.optim.lr_scheduler import StepLR
 
-GRID_SIZE = 32
-CANVAS_SIZE = 500
+from vit_pytorch import ViT
 
-#txt_path = "C:/Users/henry/OneDrive/Documents/GitHub/NeuralNetworks/CurrentWeights.txt"
-model_path = "./resnet18Super.pt"
-#model_path = "./resnet18.pt"
+def train(args, model, device, train_loader, optimizer, epoch):
+    model.train()
+    for batch_idx, (data, target) in enumerate(train_loader):
+        data, target = data.to(device), target.to(device)
+        #print(len(target))
+        optimizer.zero_grad()
+        output = model(data)
+        loss = F.cross_entropy(output, target) #Cross entropy loss function for resnet18
+        loss.backward()
+        optimizer.step()
+        if batch_idx % args.log_interval == 0:
+            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                epoch, batch_idx * len(data), len(train_loader.dataset),
+                100. * batch_idx / len(train_loader), loss.item()))
+            if args.dry_run:
+                break
+
+def test(model, device, test_loader):
+    model.eval()
+    test_loss = 0
+    correct = 0
+    with torch.no_grad():
+        for data, target in test_loader:
+            data, target = data.to(device), target.to(device)
+            output = model(data)
+            test_loss += F.cross_entropy(output, target, reduction='sum').item()  # sum up batch loss
+            pred = output.argmax(dim=1, keepdim=True)  # get the index of the max log-probability
+            correct += pred.eq(target.view_as(pred)).sum().item()
+
+    test_loss /= len(test_loader.dataset)
+
+    print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
+        test_loss, correct, len(test_loader.dataset),
+        100. * correct / len(test_loader.dataset)))
 
 
-perceptron = torchvision.models.resnet18(num_classes=10)#.to("cuda")
-perceptron = perceptron.to(torch.device("cuda"))
-loaded_state_dict = torch.load(model_path)
+def main():
+    # Training settings
+    parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
+    parser.add_argument('--batch-size', type=int, default=64, metavar='N',
+                        help='input batch size for training (default: 64)')
+    parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
+                        help='input batch size for testing (default: 1000)')
+    parser.add_argument('--epochs', type=int, default=7, metavar='N',
+                        help='number of epochs to train (default: 14)')
+    parser.add_argument('--lr', type=float, default=1.0, metavar='LR',
+                        help='learning rate (default: 1.0)')
+    parser.add_argument('--gamma', type=float, default=0.7, metavar='M',
+                        help='Learning rate step gamma (default: 0.7)')
+    parser.add_argument('--no-cuda', action='store_true', default=False,
+                        help='disables CUDA training')
+    parser.add_argument('--no-mps', action='store_true', default=False,
+                        help='disables macOS GPU training')
+    parser.add_argument('--dry-run', action='store_true', default=False,
+                        help='quickly check a single pass')
+    parser.add_argument('--seed', type=int, default=1, metavar='S',
+                        help='random seed (default: 1)')
+    parser.add_argument('--log-interval', type=int, default=10, metavar='N',
+                        help='how many batches to wait before logging training status')
+    parser.add_argument('--save-model', action='store_true', default=False,
+                        help='For Saving the current Model')
+    args = parser.parse_args()
+    use_cuda = not args.no_cuda and torch.cuda.is_available()
+    use_mps = not args.no_mps and torch.backends.mps.is_available()
 
-perceptron.load_state_dict(loaded_state_dict)
+    torch.manual_seed(args.seed)
 
-#print(loaded_state_dict)
+    if use_cuda:
+        device = torch.device("cuda") #Using CUDA
+    elif use_mps:
+        device = torch.device("mps")
+    else:
+        device = torch.device("cpu")
 
-transform = transforms.Compose( #the mean and standard deviation of CIFAR 10
-    [#transforms.RandomCrop(32, padding=4),
-    #transforms.RandomHorizontalFlip(),
-    transforms.ToTensor(),
-    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))]
-)
+    train_kwargs = {'batch_size': args.batch_size}
+    test_kwargs = {'batch_size': args.test_batch_size}
+    if use_cuda:
+        cuda_kwargs = {'num_workers': 1,
+                       'pin_memory': True,
+                       'shuffle': True}
+        train_kwargs.update(cuda_kwargs)
+        test_kwargs.update(cuda_kwargs)
 
-dataset = datasets.CIFAR10('./data', train=False, download=True, transform=transform)
+    transform = transforms.Compose( #the mean and standard deviation of CIFAR 10
+        [transforms.RandomCrop(32, padding=4),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))]
+    ) 
+    dataset1 = datasets.CIFAR10('./data', train=True, download=True,
+                       transform=transform)
+    dataset2 = datasets.CIFAR10('./data', train=False,
+                       transform=transform)
+    train_loader = torch.utils.data.DataLoader(dataset1,**train_kwargs)
+    test_loader = torch.utils.data.DataLoader(dataset2, **test_kwargs)
 
-class Square:
-    def __init__(self, row, col, canvas, r, g, b):
-        self.row = row
-        self.col = col
-        self.canvas = canvas
+    model = ViT(
+    image_size = 32,
+    patch_size = 4,
+    num_classes = 10,
+    dim = 128,
+    depth = 2,
+    heads = 16,
+    mlp_dim = 256,
+    dropout = 0.1,
+    emb_dropout = 0.1
+    )
+    model.to(device=torch.device("cuda"))
 
-        mag = CANVAS_SIZE / GRID_SIZE
-        self.gui = canvas.create_rectangle(row*mag, col*mag, (row+1)*mag, (col+1)*mag, fill=f"#{r:02x}{g:02x}{b:02x}")
+    optimizer = optim.Adadelta(model.parameters(), lr=args.lr) #Around 30% to 40%, increase by around 2 or 3% per epoch
     
-    def __str__(self):
-        return 1
+    #Tests done with ~5 epochs each, since anything else beyond that just plateaus
 
-    def delete(self):
-        self.canvas.delete(self.gui)
+    #optim.Adadelta(model.parameters(), lr=args.lr) #Around 30% to 40%, increase by around 2 or 3% per epoch
+    #optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4) #Always 10% for some reason, no improvements
+    #optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4) #Around 15% to 25%, increase by around 1 or 2% per epoch
 
-BAR_MAX_X = 250
-BAR_MAX_Y = 20
-BAR_MARGIN = 10
 
-class Bar:
-    def __init__(self, index, size, max_size, canvas):
-        self.index = index
-        self.canvas = canvas
-
-        self.gui = canvas.create_rectangle(0,0,0,0, fill="black")
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=len(test_loader), eta_min=0)
     
-    def update(self, size, max_size):       
+    #StepLR(optimizer, step_size=1, gamma=args.gamma)
+    #torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=len(test_loader), eta_min=0) #Always performs worse
 
-        x1 = 0
-        y1 = BAR_MAX_Y*self.index + BAR_MARGIN*self.index
-        x2 = 10 + BAR_MAX_X * size / max_size
-        y2 = BAR_MAX_Y*(self.index + 1) + BAR_MARGIN*self.index
+    for epoch in range(1, args.epochs + 1):
+        train(args, model, device, train_loader, optimizer, epoch)
+        test(model, device, test_loader)
+        scheduler.step()
 
-        self.canvas.coords(self.gui, x1, y1, x2, y2)
-
-        if size == max_size:
-            self.canvas.itemconfig(self.gui, fill="red")
-        else:
-            self.canvas.itemconfig(self.gui, fill="black")
-    
-    def reset(self):
-        self.canvas.coords(self.gui, 0, 0, 0, 0)
+    if args.save_model:
+        torch.save(model.state_dict(), "ViT.pt")
 
 
-class App:
-    def __init__(self, master):
-        frame = Frame(master)
-        frame.pack(fill=BOTH, expand=1)
-
-        canvas = Canvas(frame, width=CANVAS_SIZE, height=CANVAS_SIZE)
-        self.canvas = canvas
-        canvas.place(x=0,y=0)
-
-        self.squares = []
-        self.raw_data = None
-
-        menu = Frame(frame, width=450, height=500, bg="lightblue")
-        menu.place(x=CANVAS_SIZE,y=0)
-
-        rerun_button = Button(menu, text="Rerun", command=self.rerun)
-        rerun_button.place(x=20, y=100)
-        #rerun_button.grid(row=0, column=0)
-
-        clear_button = Button(menu, text="Clear", command=self.clear)
-        clear_button.place(x=20, y=200)
-        #clear_button.grid(row=1, column=0)
-
-        load_button = Button(menu, text="Load", command=self.load)
-        load_button.place(x=20, y=300)
-
-        self.result = StringVar()
-        status = Label(menu, textvariable=self.result, wraplength=250, font=("Arial", 15))
-        status.place(x=150, y=350)
-
-        self.guess = StringVar()
-        guess_label = Label(menu, textvariable=self.guess, wraplength=250, font=("Arial", 15))
-        guess_label.place(x=150, y=400)
-        #status.grid(row=1, column=1)
-
-        result_canvas = Canvas(menu, width=300, height=300)
-        self.result_canvas = result_canvas
-        result_canvas.place(x=150, y=20)
-        #result_canvas.grid(row=0, column=1)
-
-        self.class_names = ("airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck")
-        for i in range(10):
-            label = Label(menu, text=str(self.class_names[i]))
-            label.place(x=75, y=20+i*30)
-
-        self.bars = []
-        for i in range(10):
-            self.bars += [Bar(i, 0, 1, result_canvas)]
-        
-
-    
-    def draw_square(self, x, y, r, g, b):
-        if x <= CANVAS_SIZE and x >= 0 and y <= CANVAS_SIZE and y >= 0:
-            row = int(x / CANVAS_SIZE * GRID_SIZE)
-            col = int(y / CANVAS_SIZE * GRID_SIZE)
-
-            square = Square(row, col, self.canvas, r, g, b)
-            self.squares.append(square)
-            
-            #self.rerun()
-
-    def rerun(self):
-        if self.raw_data is not None:
-            perceptron.eval()
-            with torch.no_grad():
-                x = self.raw_data
-
-                #print(x)
-
-                transformed_image = transforms.ToTensor()(x)
-                x = transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))(transformed_image)
-
-                x = torch.tensor(np.array([x]), dtype=torch.float)
-                x = x.to(torch.device("cuda"))
-
-                print(x)
-
-                #print(x.shape)
-                result = perceptron(x).cpu()
-                answer = result.argmax(dim=1, keepdim=True)
-                
-                
-                softmax_result = F.softmax(result, dim=1)
-                np_result = softmax_result.data.numpy()[0]
-
-                result_max = np_result[answer[0][0]]
-
-                print(softmax_result)
-
-                print(result_max)
-
-                for i in range(len(self.bars)):
-                    self.bars[i].update(np_result[i], result_max)
-                    pass
-
-                self.guess.set(f"Outputs updated, best guesses: {[self.class_names[target[0]] for target in answer]}")
-        else:
-            self.guess.set(f"Missing input")
-    
-    def clear(self):
-        for square in self.squares:
-            square.delete()
-        
-        squares = []
-
-        for bar in self.bars:
-            bar.reset()
-
-        self.result.set("Canvas cleared")
-        print("clear")
-    
-    def load(self):
-        self.clear()
-        cell_size = CANVAS_SIZE / GRID_SIZE
-
-        rand_i = int(np.random.rand()*10000)
-
-        data = dataset.data[rand_i]
-        target = dataset.targets[rand_i]
-
-        self.raw_data = data
-
-        #print(len(data[0][0]))
-
-        for i_row in range(len(data)):
-            for i_v in range(len(data[i_row])):
-                rgb = data[i_v][i_row]
-
-                self.draw_square(i_row*cell_size, i_v*cell_size, rgb[0], rgb[1], rgb[2])
-        
-        self.result.set(f"Currently Displaying: {self.class_names[target]}")
-
-        self.rerun()
-
-
-root = Tk()
-root.minsize(CANVAS_SIZE+450, CANVAS_SIZE)
-root.resizable(False, False)
-root.wm_title("CIFAR-10 Perceptron Reader")
-
-app = App(root)
-
-root.mainloop()
-
-print("were done")
+if __name__ == '__main__':
+    main()
