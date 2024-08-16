@@ -679,9 +679,147 @@ def generate(cfg):
 # Load model and config
 cfg = CONFIG()
 
+
+from tkinter import *
+from torchvision import transforms
+
+transform_stats = (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)
+transform = transforms.Compose( #the mean and standard deviation of CIFAR 10
+    [transforms.ToTensor(),
+    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))]
+)
+
+
+GRID_SIZE = 32
+CANVAS_SIZE = 500
+
 # Generate
 generated_imgs = []
-for i in tqdm(range(cfg.num_img_to_generate)):
+
+from torchvision import transforms
+
+transform_stats = (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)
+transform = transforms.Compose( #the mean and standard deviation of CIFAR 10
+    [transforms.ToTensor(),
+    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))]
+)
+
+def makeImage():
+    fake_image = generate(cfg)
+
+    #denormalize
+    image = fake_image * transform_stats[1][0] + transform_stats[0][0]
+
+    '''for i_row in range(len(data)):
+        for i_v in range(len(data[i_row])):
+            rgb = data[i_v][i_row]
+
+            self.draw_square(i_row*cell_size, i_v*cell_size, rgb[0], rgb[1], rgb[2])'''
+    image = image[0]
+    #image.cpu()
+    #print(image)
+    #print(image.shape)
+
+    raw_image = image.cpu().numpy().transpose(1, 2, 0)
+
+    # Clip values to [0, 1]
+    raw_image = np.clip(raw_image, 0, 1)
+
+    # Convert to uint8
+    raw_image = (raw_image * 255).astype(np.uint8)
+    print(raw_image)
+    print(raw_image.shape)
+
+    return raw_image
+
+raw_image = makeImage()
+
+class Square:
+    def __init__(self, row, col, canvas, r, g, b):
+        self.row = row
+        self.col = col
+        self.canvas = canvas
+
+        mag = CANVAS_SIZE / GRID_SIZE
+        self.gui = canvas.create_rectangle(row*mag, col*mag, (row+1)*mag, (col+1)*mag, fill=f"#{r:02x}{g:02x}{b:02x}")
+    
+    def __str__(self):
+        return 1
+
+    def delete(self):
+        self.canvas.delete(self.gui)
+
+class App:
+    def __init__(self, master):
+        frame = Frame(master)
+        frame.pack(fill=BOTH, expand=1)
+
+        canvas = Canvas(frame, width=CANVAS_SIZE, height=CANVAS_SIZE)
+        self.canvas = canvas
+        canvas.place(x=0,y=0)
+
+        self.squares = []
+        self.raw_data = None
+
+        menu = Frame(frame, width=450, height=500, bg="lightblue")
+        menu.place(x=CANVAS_SIZE,y=0)
+
+        rerun_button = Button(menu, text="Rerun", command=self.rerun)
+        rerun_button.place(x=20, y=100)
+
+        clear_button = Button(menu, text="Clear", command=self.clear)
+        clear_button.place(x=20, y=200)
+
+        load_button = Button(menu, text="Load", command=self.load)
+        load_button.place(x=20, y=300)
+
+        self.result = StringVar()
+        status = Label(menu, textvariable=self.result, wraplength=250, font=("Arial", 15))
+        status.place(x=150, y=350)
+    
+    def draw_square(self, x, y, r, g, b):
+        if x <= CANVAS_SIZE and x >= 0 and y <= CANVAS_SIZE and y >= 0:
+            row = int(x / CANVAS_SIZE * GRID_SIZE)
+            col = int(y / CANVAS_SIZE * GRID_SIZE)
+
+            square = Square(row, col, self.canvas, r, g, b)
+            self.squares.append(square)
+            
+            #self.rerun()
+
+    def rerun(self):
+        #Display image
+        cell_size = CANVAS_SIZE / GRID_SIZE
+        for i_row in range(len(raw_image)):
+            for i_v in range(len(raw_image[i_row])):
+                rgb = raw_image[i_v][i_row]
+
+                self.draw_square(i_row*cell_size, i_v*cell_size, rgb[0], rgb[1], rgb[2])
+    
+    def load(self):
+        pass
+
+    def clear(self):
+        for square in self.squares:
+            square.delete()
+        
+        squares = []
+
+
+root = Tk()
+root.minsize(CANVAS_SIZE+450, CANVAS_SIZE)
+root.resizable(False, False)
+root.wm_title("CIFAR-10 GAN Generator")
+
+app = App(root)
+
+root.mainloop()
+
+
+
+
+
+'''for i in tqdm(range(cfg.num_img_to_generate)):
     xt = generate(cfg)
     xt = 255 * xt[0][0].numpy()
     generated_imgs.append(xt.astype(np.uint8).flatten())
@@ -700,4 +838,4 @@ for i, ax in enumerate(axes.flat):
     ax.axis('off')  # Turn off axis labels
 
 plt.tight_layout()  # Adjust spacing between subplots
-plt.show()
+plt.show()'''
