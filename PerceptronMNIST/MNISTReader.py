@@ -126,7 +126,7 @@ class App:
         load_button.place(x=20, y=300)
 
         self.result = StringVar()
-        status = Label(menu, textvariable=self.result, wraplength=250, font=("Arial", 20))
+        status = Label(menu, textvariable=self.result, wraplength=250, font=("Arial", 30))
         status.place(x=150, y=350)
         #status.grid(row=1, column=1)
 
