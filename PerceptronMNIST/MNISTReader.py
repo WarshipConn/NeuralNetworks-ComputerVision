@@ -42,7 +42,7 @@ class Net(nn.Module):
         return torch.exp(self.forward(x))
 
 perceptron = Net()
-loaded_state_dict = torch.load(model_path)
+loaded_state_dict = torch.load(model_path, map_location=torch.device('cpu'))
 
 perceptron.load_state_dict(loaded_state_dict)
 
