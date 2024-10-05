@@ -118,7 +118,7 @@ def main():
 
     transform=transforms.Compose([
         transforms.ToTensor(),
-        transforms.Normalize((0.1307,), (0.3081,)) #the mean and standard deviation of the pixel intensities in the MNIST dataset
+        transforms.Normalize((0.1307,), (0.3081,)) #the mean and standard deviations of the pixel intensities in the MNIST dataset
         ])
     dataset1 = datasets.MNIST('../data', train=True, download=True,
                        transform=transform)
