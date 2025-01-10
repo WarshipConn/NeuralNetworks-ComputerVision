@@ -47,8 +47,8 @@ generator = nn.Sequential(
 
     #out: 3 x 32 x 32
 )
-generator.to(device=torch.device("cuda"))
-loaded_state_dict = torch.load(generator_path)
+generator.to(device=torch.device("cpu"))
+loaded_state_dict = torch.load(generator_path, map_location=torch.device("cpu"))
 generator.load_state_dict(loaded_state_dict)
 
 discriminator = nn.Sequential(
@@ -75,11 +75,11 @@ discriminator = nn.Sequential(
     nn.Flatten(),
     nn.Sigmoid()
 )
-discriminator.to(device=torch.device("cuda"))
-loaded_state_dict = torch.load(discriminator_path)
+discriminator.to(device=torch.device("cpu"))
+loaded_state_dict = torch.load(discriminator_path, map_location=torch.device("cpu"))
 discriminator.load_state_dict(loaded_state_dict)
 
-device = torch.device("cuda")
+device = torch.device("cpu")
 
 def filter_dataset():
     # Define transformations
@@ -100,7 +100,7 @@ def filter_dataset():
 
     return dog_dataset
 
-dog_dataset = filter_dataset()
+#dog_dataset = filter_dataset()
 
 class Square:
     def __init__(self, row, col, canvas, r, g, b):
